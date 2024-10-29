@@ -1,7 +1,8 @@
-use std::env;
+use std::{env, process};
 
 use app::Dialogue;
 use clipboard::{Clipboard, Contents};
+use x11rb::protocol::xproto::ConnectionExt;
 use data::Mappings;
 
 mod data;
@@ -29,9 +30,23 @@ fn load() -> Result<(), String> {
     println!("Opening load dialogue...");
     let key = dialogue()?;
     println!("Expanding {}...", key);
-    let result = expand(key)?;
+    let result = expand(key.clone())?;
     println!("Loading into clipboard...");
-    Clipboard::set_contents(result)
+    let clip = Clipboard::new()?;
+    clip.set_contents(result)?;
+    println!("Successfully loaded clipboard {}, waiting for X11 selection to change owners...", key);
+    
+    // Wait for clipboard owner to change, then kill process
+    loop {
+        if clip.0.setter.connection.get_selection_owner(clip.0.getter.atoms.clipboard)
+            .map_err(|e| format!("Failed to obtain current X11 clipboard owner due to: {}", e))?
+            .reply()
+            .map(|reply| reply.owner != clip.0.setter.window)
+            .unwrap_or(true)
+        {
+            process::exit(0);
+        }
+    }
 }
 
 fn dialogue() -> Result<String, String> {

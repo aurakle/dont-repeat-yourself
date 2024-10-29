@@ -1,8 +1,6 @@
-use libc::fork;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, process::{self, Command}, time::Duration};
-use x11rb::protocol::xproto::ConnectionExt;
-use x11_clipboard::{Atom, Clipboard as X11Clipboard};
+use std::{collections::HashMap, process::Command};
+use x11_clipboard::Clipboard as X11Clipboard;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Contents (HashMap<String, Vec<u8>>);
@@ -30,9 +28,13 @@ impl Contents {
     }
 }
 
-pub struct Clipboard;
+pub struct Clipboard(pub X11Clipboard);
 
 impl Clipboard {
+    pub fn new() -> Result<Self, String> {
+        Ok(Self(X11Clipboard::new().map_err(|e| e.to_string())?))
+    }
+
     pub fn get_contents() -> Result<Contents, String> {
         let targets = Command::new("xclip")
             .arg("-o")
@@ -52,35 +54,18 @@ impl Clipboard {
         Contents::new(targets)
     }
 
-    pub fn set_contents(contents: Contents) -> Result<(), String> {
-        match unsafe { fork() } {
-            -1 => Err(format!("Could not fork process")),
-            0 => {
-                // Obtain new X11 clipboard context
-                let clip = X11Clipboard::new().expect("Failed to obtain X11 clipboard context");
+    pub fn set_contents(&self, contents: Contents) -> Result<(), String> {
+        let mut target_map = HashMap::new();
 
-                // Load contents into clipboard
-                for kv in contents.0 {
-                    clip.store(
-                        clip.setter.atoms.clipboard,
-                        clip.getter.get_atom(kv.0.as_str()).expect("Failed to obtain atom for a saved target"),
-                        kv.1,
-                    ).expect("Failed to set clipboard contents through forked process");
-                }
-
-                // Wait for clipboard to change, then kill fork
-                loop {
-                    if clip.setter.connection.get_selection_owner(clip.getter.atoms.clipboard)
-                        .expect("Failed to obtain current X11 clipboard owner")
-                        .reply()
-                        .map(|reply| reply.owner != clip.setter.window)
-                        .unwrap_or(true)
-                    {
-                        process::exit(0);
-                    }
-                }
-            }
-            _pid => Ok(()),
+        for kv in contents.0 {
+            target_map.insert(self.0.getter.get_atom(kv.0.as_str()).map_err(|e| format!("Failed to obtain atom for target {} due to: {}", kv.0, e))?, kv.1);
         }
+
+        self.0.store_multiple(
+            self.0.setter.atoms.clipboard,
+            target_map,
+        ).map_err(|e| format!("Failed to load clipboard due to: {}", e))?;
+
+        Ok(())
     }
 }

@@ -849,9 +849,7 @@ dependencies = [
  "ciborium",
  "directories",
  "eframe",
- "libc",
  "serde",
- "x11",
  "x11-clipboard",
  "x11rb",
 ]
@@ -3462,20 +3460,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "x11"
-version = "2.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "502da5464ccd04011667b11c435cb992822c2c0dbde1770c988480d312a0db2e"
-dependencies = [
- "libc",
- "pkg-config",
-]
-
-[[package]]
 name = "x11-clipboard"
 version = "0.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "662d74b3d77e396b8e5beb00b9cad6a9eccf40b2ef68cc858784b14c41d535a3"
+source = "git+https://github.com/StellarWitch7/x11-clipboard.git#6157c74f47dc2378060c0fb147d1a5d17a2915b6"
 dependencies = [
  "libc",
  "x11rb",
