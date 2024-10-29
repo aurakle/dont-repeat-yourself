@@ -1,47 +1,53 @@
-use std::{collections::HashMap, fs::File, path::PathBuf};
+use std::{collections::HashMap, fs::{self, File}, path::PathBuf, process::Command};
 
 use serde::{Deserialize, Serialize};
 
-use crate::clipboard::Contents;
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Contents (pub HashMap<String, Vec<u8>>);
 
-#[derive(Serialize, Deserialize)]
-pub struct Mappings (HashMap<String, Contents>);
+impl Contents {
+    pub fn new(targets: Vec<&str>) -> Result<Self, String> {
+        let mut map = HashMap::new();
 
-impl Mappings {
-    fn new() -> Self {
-        Self(HashMap::new())
+        for target in targets {
+            if target != "TARGETS" {
+                let contents = Command::new("xclip")
+                    .arg("-o")
+                    .arg("-target")
+                    .arg(target)
+                    .arg("-selection")
+                    .arg("clipboard")
+                    .output()
+                    .map_err(|e| e.to_string())?
+                    .stdout;
+                map.insert(target.to_string(), contents);
+            }
+        }
+
+        Ok(Self(map))
     }
 
-    pub fn load() -> Result<Self, String> {
-        match File::open(path()?) {
-            Ok(reader) => ciborium::from_reader::<Mappings, File>(reader).map_err(|e| e.to_string()),
-            Err(_) => Ok(Mappings::new())
+    pub fn get(key: String) -> Result<Contents, String> {
+        match File::open(path(key)?) {
+            Ok(reader) => ciborium::from_reader::<Contents, File>(reader).map_err(|e| e.to_string()),
+            Err(_) => Ok(Contents(HashMap::new()))
         }
     }
 
-    pub fn save(&self) -> Result<(), String> {
-        ciborium::into_writer(self, File::create(path()?).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
-    }
-
-    pub fn put(&mut self, key: String, value: Contents) -> &mut Self {
-        self.0.insert(key, value);
-        self
-    }
-
-    pub fn get(&self, key: String) -> Result<Contents, String> {
-        match self.0.get(&key) {
-            Some(v) => Ok(v.clone()),
-            None => Err(format!("Key does not map to a value"))
-        }
+    pub fn put(&self, key: String) -> Result<(), String> {
+        ciborium::into_writer(self, File::create(path(key)?).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
     }
 }
 
-fn path() -> Result<PathBuf, String> {
+fn path(key: String) -> Result<PathBuf, String> {
     let mut result = match directories::BaseDirs::new() {
         Some(v) => v,
         None => return Err(format!("OS failed to provide configuration paths"))
     }.config_dir().to_path_buf();
-    result.push("dont-repeat-yourself.cbor");
+
+    result.push("dont-repeat-yourself");
+    let _ = fs::create_dir_all(result.clone());
+    result.push(format!("{}.cbor", key));
 
     Ok(result)
 }

@@ -1,32 +1,7 @@
-use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, process::Command};
 use x11_clipboard::Clipboard as X11Clipboard;
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Contents (HashMap<String, Vec<u8>>);
-
-impl Contents {
-    fn new(targets: Vec<&str>) -> Result<Self, String> {
-        let mut map = HashMap::new();
-
-        for target in targets {
-            if target != "TARGETS" {
-                let contents = Command::new("xclip")
-                    .arg("-o")
-                    .arg("-target")
-                    .arg(target)
-                    .arg("-selection")
-                    .arg("clipboard")
-                    .output()
-                    .map_err(|e| e.to_string())?
-                    .stdout;
-                map.insert(target.to_string(), contents);
-            }
-        }
-
-        Ok(Self(map))
-    }
-}
+use crate::data::Contents;
 
 pub struct Clipboard(pub X11Clipboard);
 

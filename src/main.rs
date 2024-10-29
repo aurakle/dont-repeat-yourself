@@ -1,9 +1,9 @@
 use std::{env, process};
 
 use app::Dialogue;
-use clipboard::{Clipboard, Contents};
+use clipboard::Clipboard;
 use x11rb::protocol::xproto::ConnectionExt;
-use data::Mappings;
+use data::Contents;
 
 mod data;
 mod app;
@@ -23,14 +23,14 @@ fn save() -> Result<(), String> {
     let contents = Clipboard::get_contents()?;
     println!("Opening save dialogue...");
     let name = dialogue()?;
-    put(name, contents)
+    contents.put(name)
 }
 
 fn load() -> Result<(), String> {
     println!("Opening load dialogue...");
     let key = dialogue()?;
     println!("Expanding {}...", key);
-    let result = expand(key.clone())?;
+    let result = Contents::get(key.clone())?;
     println!("Loading into clipboard...");
     let clip = Clipboard::new()?;
     clip.set_contents(result)?;
@@ -63,12 +63,4 @@ fn dialogue() -> Result<String, String> {
                                                                             //using `retain`
 
     Ok(text)
-}
-
-fn put(key: String, value: Contents) -> Result<(), String> {
-    Mappings::load()?.put(key, value).save()
-}
-
-fn expand(key: String) -> Result<Contents, String> {
-    Mappings::load()?.get(key)
 }
