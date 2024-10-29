@@ -1,8 +1,8 @@
 use libc::fork;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, process::{self, Command}, time::Duration};
-use x11_clipboard::{Atom, Clipboard as X11Clipboard, RustConnection};
 use x11rb::protocol::xproto::ConnectionExt;
+use x11_clipboard::{Atom, Clipboard as X11Clipboard};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Contents (HashMap<String, Vec<u8>>);
@@ -12,23 +12,25 @@ impl Contents {
         let mut map = HashMap::new();
 
         for target in targets {
-            let contents = Command::new("xclip")
-                .arg("-o")
-                .arg("-target")
-                .arg(target)
-                .arg("-selection")
-                .arg("clipboard")
-                .output()
-                .map_err(|e| e.to_string())?
-                .stdout;
-            map.insert(target.to_string(), contents);
+            if target != "TARGETS" {
+                let contents = Command::new("xclip")
+                    .arg("-o")
+                    .arg("-target")
+                    .arg(target)
+                    .arg("-selection")
+                    .arg("clipboard")
+                    .output()
+                    .map_err(|e| e.to_string())?
+                    .stdout;
+                map.insert(target.to_string(), contents);
+            }
         }
 
         Ok(Self(map))
     }
 }
 
-pub struct Clipboard (X11Clipboard);
+pub struct Clipboard;
 
 impl Clipboard {
     pub fn get_contents() -> Result<Contents, String> {
@@ -51,28 +53,32 @@ impl Clipboard {
     }
 
     pub fn set_contents(contents: Contents) -> Result<(), String> {
-        //TODO: this only works with utf8 strings
         match unsafe { fork() } {
             -1 => Err(format!("Could not fork process")),
             0 => {
-                //// Obtain new X11 clipboard context, set clipboard contents
-                //let clip = Clipboard::new().expect("Failed to obtain X11 clipboard context");
-                //clip.0.store(
-                //    clip.0.setter.atoms.clipboard,
-                //    clip.0.setter.atoms.utf8_string,
-                //    contents,
-                //)
-                //.expect("Failed to set clipboard contents through forked process");
-                //
-                //// Wait for clipboard to change, then kill fork
-                //clip.0.load_wait(
-                //    clip.0.getter.atoms.clipboard,
-                //    clip.0.getter.atoms.utf8_string,
-                //    clip.0.getter.atoms.property,
-                //)
-                //.expect("Failed to wait on new clipboard value in forked process");
+                // Obtain new X11 clipboard context
+                let clip = X11Clipboard::new().expect("Failed to obtain X11 clipboard context");
 
-                process::exit(0)
+                // Load contents into clipboard
+                for kv in contents.0 {
+                    clip.store(
+                        clip.setter.atoms.clipboard,
+                        clip.getter.get_atom(kv.0.as_str()).expect("Failed to obtain atom for a saved target"),
+                        kv.1,
+                    ).expect("Failed to set clipboard contents through forked process");
+                }
+
+                // Wait for clipboard to change, then kill fork
+                loop {
+                    if clip.setter.connection.get_selection_owner(clip.getter.atoms.clipboard)
+                        .expect("Failed to obtain current X11 clipboard owner")
+                        .reply()
+                        .map(|reply| reply.owner != clip.setter.window)
+                        .unwrap_or(true)
+                    {
+                        process::exit(0);
+                    }
+                }
             }
             _pid => Ok(()),
         }

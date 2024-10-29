@@ -19,7 +19,7 @@ fn main() -> Result<(), String> {
 
 fn save() -> Result<(), String> {
     println!("Copying clipboard...");
-    let contents = Clipboard::get_contents().map_err(|e| e.to_string())?;
+    let contents = Clipboard::get_contents()?;
     println!("Opening save dialogue...");
     let name = dialogue()?;
     put(name, contents)
@@ -31,7 +31,7 @@ fn load() -> Result<(), String> {
     println!("Expanding {}...", key);
     let result = expand(key)?;
     println!("Loading into clipboard...");
-    Clipboard::set_contents(result).map_err(|e| e.to_string())
+    Clipboard::set_contents(result)
 }
 
 fn dialogue() -> Result<String, String> {
