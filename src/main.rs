@@ -1,35 +1,37 @@
+use std::env;
+
 use app::Dialogue;
-use copypasta_ext::{prelude::ClipboardProvider, x11_fork::ClipboardContext};
+use clipboard::{Clipboard, Contents};
 use data::Mappings;
 
 mod data;
 mod app;
+mod clipboard;
 
 fn main() -> Result<(), String> {
-    let clip_ctx: ClipboardContext = ClipboardContext::new().unwrap();
 
-    match std::env::args().collect::<Vec<_>>()[1].as_str() {
-        "save" => save(clip_ctx),
-        "load" => load(clip_ctx),
+    match env::args().collect::<Vec<_>>()[1].as_str() {
+        "save" => save(),
+        "load" => load(),
         &_ => Err(format!("Unknown verb -- either one of `load` or `save` allowed"))
     }
 }
 
-fn save(mut clip_ctx: ClipboardContext) -> Result<(), String> {
+fn save() -> Result<(), String> {
     println!("Copying clipboard...");
-    let contents = clip_ctx.get_contents().map_err(|e| e.to_string())?;
+    let contents = Clipboard::get_contents().map_err(|e| e.to_string())?;
     println!("Opening save dialogue...");
     let name = dialogue()?;
     put(name, contents)
 }
 
-fn load(mut clip_ctx: ClipboardContext) -> Result<(), String> {
+fn load() -> Result<(), String> {
     println!("Opening load dialogue...");
     let key = dialogue()?;
     println!("Expanding {}...", key);
     let result = expand(key)?;
     println!("Loading into clipboard...");
-    clip_ctx.set_contents(result).map_err(|e| e.to_string())
+    Clipboard::set_contents(result).map_err(|e| e.to_string())
 }
 
 fn dialogue() -> Result<String, String> {
@@ -48,10 +50,10 @@ fn dialogue() -> Result<String, String> {
     Ok(text)
 }
 
-fn put(key: String, value: String) -> Result<(), String> {
+fn put(key: String, value: Contents) -> Result<(), String> {
     Mappings::load()?.put(key, value).save()
 }
 
-fn expand(key: String) -> Result<String, String> {
+fn expand(key: String) -> Result<Contents, String> {
     Mappings::load()?.get(key)
 }

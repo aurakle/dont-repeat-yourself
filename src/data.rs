@@ -1,41 +1,35 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{collections::HashMap, fs::{self, File}, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::clipboard::Contents;
+
 #[derive(Serialize, Deserialize)]
-pub struct Mappings {
-    map: HashMap<String, String>,
-}
+pub struct Mappings (HashMap<String, Contents>);
 
 impl Mappings {
     fn new() -> Self {
-        Self {
-            map: HashMap::new(),
-        }
+        Self(HashMap::new())
     }
 
     pub fn load() -> Result<Self, String> {
-        match fs::read(path()?) {
-            Ok(contents) => serde_json::from_str::<Mappings>(String::from_utf8(contents)
-                .map_err(|e| e.to_string())?.as_str())
-                .map_err(|e| e.to_string()),
-            Err(_) => Ok(Mappings::new())
+        match File::open(path()?) {
+            Ok(reader) => ciborium::from_reader::<Mappings, File>(reader).map_err(|e| e.to_string()),
+            Err(e) => Ok(Mappings::new())
         }
     }
 
     pub fn save(self: &Mappings) -> Result<(), String> {
-        fs::write(path()?, serde_json::to_string(&self)
-            .map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())
+        ciborium::into_writer(self, File::create(path()?).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
     }
 
-    pub fn put(self: &mut Mappings, key: String, value: String) -> &mut Self {
-        self.map.insert(key, value);
+    pub fn put(self: &mut Mappings, key: String, value: Contents) -> &mut Self {
+        self.0.insert(key, value);
         self
     }
 
-    pub fn get(self: &Mappings, key: String) -> Result<String, String> {
-        match self.map.get(&key) {
+    pub fn get(self: &Mappings, key: String) -> Result<Contents, String> {
+        match self.0.get(&key) {
             Some(v) => Ok(v.clone()),
             None => Err(format!("Key does not map to a value"))
         }
@@ -47,7 +41,7 @@ fn path() -> Result<PathBuf, String> {
         Some(v) => v,
         None => return Err(format!("OS failed to provide configuration paths"))
     }.config_dir().to_path_buf();
-    result.push("dont-repeat-yourself.json");
+    result.push("dont-repeat-yourself.cbor");
 
     Ok(result)
 }

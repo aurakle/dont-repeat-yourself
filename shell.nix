@@ -21,6 +21,6 @@ in pkgs.mkShell {
   ]);
 
   RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
-  RUST_BACKTRACE = 1;
+  RUST_BACKTRACE = "full";
   LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath libs;
 }
