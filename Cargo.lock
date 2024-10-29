@@ -3462,7 +3462,7 @@ dependencies = [
 [[package]]
 name = "x11-clipboard"
 version = "0.9.3"
-source = "git+https://github.com/StellarWitch7/x11-clipboard.git#22ffec17832ced490d40af953276fd1b2a7538d6"
+source = "git+https://github.com/StellarWitch7/x11-clipboard.git#9e6da02939b809d041458dcd121b1c4d84e267f0"
 dependencies = [
  "libc",
  "x11rb",
