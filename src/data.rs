@@ -27,15 +27,20 @@ impl Contents {
         Ok(Self(map))
     }
 
-    pub fn get(key: String) -> Result<Contents, String> {
-        match File::open(path(key)?) {
-            Ok(reader) => ciborium::from_reader::<Contents, File>(reader).map_err(|e| e.to_string()),
-            Err(_) => Ok(Contents(HashMap::new()))
+    pub fn get(key: String) -> Option<Contents> {
+        match Contents::load(key) {
+            Ok(contents) => Some(contents),
+            Err(_) => None
         }
     }
 
     pub fn put(&self, key: String) -> Result<(), String> {
         ciborium::into_writer(self, File::create(path(key)?).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
+    }
+
+    fn load(key: String) -> Result<Contents, String> {
+        let reader = File::open(path(key)?).map_err(|e| e.to_string())?;
+        ciborium::from_reader::<Contents, File>(reader).map_err(|e| e.to_string())
     }
 }
 

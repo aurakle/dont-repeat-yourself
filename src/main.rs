@@ -1,4 +1,4 @@
-use std::{env, process};
+use std::env;
 
 use app::Dialogue;
 use clipboard::Clipboard;
@@ -29,23 +29,28 @@ fn save() -> Result<(), String> {
 fn load() -> Result<(), String> {
     println!("Opening load dialogue...");
     let key = dialogue()?;
-    println!("Expanding {}...", key);
-    let result = Contents::get(key.clone())?;
-    println!("Loading into clipboard...");
-    let clip = Clipboard::new()?;
-    clip.set_contents(result)?;
-    println!("Successfully loaded clipboard {}, waiting for X11 selection to change owners...", key);
-    
-    // Wait for clipboard owner to change, then kill process
-    loop {
-        if clip.0.setter.connection.get_selection_owner(clip.0.getter.atoms.clipboard)
-            .map_err(|e| format!("Failed to obtain current X11 clipboard owner due to: {}", e))?
-            .reply()
-            .map(|reply| reply.owner != clip.0.setter.window)
-            .unwrap_or(true)
-        {
-            process::exit(0);
-        }
+    println!("Loading clipboard {}...", key);
+
+    match Contents::get(key) {
+        Some(result) => {
+            println!("Loading into clipboard...");
+            let clip = Clipboard::new()?;
+            clip.set_contents(result)?;
+            println!("Successfully loaded clipboard, waiting for X11 selection to change owners...");
+            
+            // Wait for clipboard owner to change, then kill process
+            loop {
+                if clip.0.setter.connection.get_selection_owner(clip.0.getter.atoms.clipboard)
+                    .map_err(|e| format!("Failed to obtain current X11 clipboard owner due to: {}", e))?
+                    .reply()
+                    .map(|reply| reply.owner != clip.0.setter.window)
+                    .unwrap_or(true)
+                {
+                    break Ok(());
+                }
+            }
+        },
+        None => Err(format!("No such saved clipboard; terminating!"))
     }
 }
 

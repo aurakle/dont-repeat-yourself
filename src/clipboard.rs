@@ -33,6 +33,7 @@ impl Clipboard {
         let mut target_map = HashMap::new();
 
         for kv in contents.0 {
+            println!("Loading saved target {}", kv.0);
             target_map.insert(self.0.getter.get_atom(kv.0.as_str()).map_err(|e| format!("Failed to obtain atom for target {} due to: {}", kv.0, e))?, kv.1);
         }
 
