@@ -8,10 +8,8 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        callPackage = pkgs.callPackage;
       in {
         devShells.default = import ./shell.nix { inherit pkgs; };
-        packages.default = callPackage ./package.nix { };
       }
     );
 }
