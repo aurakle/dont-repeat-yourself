@@ -10,7 +10,6 @@ mod app;
 mod clipboard;
 
 fn main() -> Result<(), String> {
-
     match env::args().collect::<Vec<_>>()[1].as_str() {
         "save" => save(),
         "load" => load(),

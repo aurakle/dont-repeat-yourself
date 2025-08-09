@@ -1,14 +1,15 @@
+{ pkgs ? import <nixpkgs> { } }:
+
 let
-  nixpkgsVer = "7069932e560daa85506f65ec7f63e4bbc5e0d22a";
-  pkgs = import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/${nixpkgsVer}.tar.gz") { config = {}; overlays = []; };
   libs = with pkgs; [
-    xorg.libX11
-    xorg.libXcursor
-    xorg.libxcb
-    xorg.libXi
     libxkbcommon
     libGL
-  ];
+  ] ++ (with xorg; [
+    libX11
+    libXcursor
+    libxcb
+    libXi
+  ]);
 in pkgs.mkShell {
   name = "rust";
 
